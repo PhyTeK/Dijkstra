@@ -5,127 +5,67 @@
 
 # define NV 6
 
-int main ( int argc, char **argv );
-int *dijkstra_distance ( int ohd[NV][NV] );
-void find_nearest ( int s, int e, int mind[NV], int connected[NV], int *d, 
+int main(int argc, char **argv );
+int *dijkstra_distance(int ohd[NV][NV] );
+void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d, 
   int *v );
-void init ( int ohd[NV][NV] );
-void timestamp ( void );
-void update_mind ( int s, int e, int mv, int connected[NV], int ohd[NV][NV], 
+void init(int ohd[NV][NV] );
+void timestamp(void );
+void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV], 
   int mind[NV] );
 
-/******************************************************************************/
-
-int main ( int argc, char **argv )
-
-/******************************************************************************/
-/*
-  Purpose:
-
-    MAIN runs an example of Dijkstra's minimum distance algorithm.
-
-  Discussion:
-
-    Given the distance matrix that defines a graph, we seek a list
-    of the minimum distances between node 0 and all other nodes.
-
-    This program sets up a small example problem and solves it.
-
-    The correct minimum distances are:
-
-      0   35   15   45   49   41
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    01 July 2010
-
-  Author:
-
-    Original C version by Norm Matloff, CS Dept, UC Davis.
-    This C version by John Burkardt.
-*/
+int main(int argc, char **argv )
 {
-  int i;
+  int i,j;
   int i4_huge = 2147483647;
-  int j;
   int *mind;
   int ohd[NV][NV];
 
-  timestamp ( );
-  fprintf ( stdout, "\n" );
-  fprintf ( stdout, "DIJKSTRA_OPENMP\n" );
-  fprintf ( stdout, "  C version\n" );
-  fprintf ( stdout, "  Use Dijkstra's algorithm to determine the minimum\n" );
-  fprintf ( stdout, "  distance from node 0 to each node in a graph,\n" );
-  fprintf ( stdout, "  given the distances between each pair of nodes.\n" );
-  fprintf ( stdout, "\n" );
-  fprintf ( stdout, "  Although a very small example is considered, we\n" );
-  fprintf ( stdout, "  demonstrate the use of OpenMP directives for\n" );
-  fprintf ( stdout, "  parallel execution.\n" );
-/*
-  Initialize the problem data.
-*/
-  init ( ohd );
-/*
-  Print the distance matrix.
-*/
-  fprintf ( stdout, "\n" );
-  fprintf ( stdout, "  Distance matrix:\n" );
-  fprintf ( stdout, "\n" );
-  for ( i = 0; i < NV; i++ )
-  {
-    for ( j = 0; j < NV; j++ )
-    {
-      if ( ohd[i][j] == i4_huge )
-      {
-        fprintf ( stdout, "  Inf" );
-      }
-      else
-      {
-        fprintf ( stdout, "  %3d", ohd[i][j] );
+  timestamp( );
+
+  init( ohd );
+
+  fprintf(stdout, "\n" );
+  fprintf(stdout, "  Distance matrix:\n" );
+  fprintf(stdout, "\n" );
+  for(i = 0; i < NV; i++ ) {
+    for(j = 0; j < NV; j++ ) {
+      if(ohd[i][j] == i4_huge ) {
+        fprintf(stdout, "  Inf" );
+      }else{
+        fprintf(stdout, "  %3d", ohd[i][j] );
       }
     }
-    fprintf ( stdout, "\n" );
+    fprintf(stdout, "\n" );
   }
-/*
-  Carry out the algorithm.
-*/
-  mind = dijkstra_distance ( ohd );  
-/*
-  Print the results.
-*/
-  fprintf ( stdout, "\n" );
-  fprintf ( stdout, "  Minimum distances from node 0:\n");
-  fprintf ( stdout, "\n" );
-  for ( i = 0; i < NV; i++ )
+
+  mind = dijkstra_distance(ohd );  
+
+  fprintf(stdout, "\n" );
+  fprintf(stdout, "  Minimum distances from node 0:\n");
+  fprintf(stdout, "\n" );
+  for(i = 0; i < NV; i++ )
   {
-    fprintf ( stdout, "  %2d  %2d\n", i, mind[i] );
+    fprintf(stdout, "  %2d  %2d\n", i, mind[i] );
   }
 /*
   Free memory.
 */
-  free ( mind );
+  free(mind );
 /*
   Terminate.
 */
-  fprintf ( stdout, "\n" );
-  fprintf ( stdout, "DIJKSTRA_OPENMP\n" );
-  fprintf ( stdout, "  Normal end of execution.\n" );
+  fprintf(stdout, "\n" );
+  fprintf(stdout, "DIJKSTRA_OPENMP\n" );
+  fprintf(stdout, "  Normal end of execution.\n" );
 
-  fprintf ( stdout, "\n" );
-  timestamp ( );
+  fprintf(stdout, "\n" );
+  timestamp();
 
   return 0;
 }
-/******************************************************************************/
 
-int *dijkstra_distance ( int ohd[NV][NV]  )
-
-/******************************************************************************/
+int *dijkstra_distance(int ohd[NV][NV]  )
 /*
   Purpose:
 
@@ -185,46 +125,43 @@ int *dijkstra_distance ( int ohd[NV][NV]  )
 /*
   Start out with only node 0 connected to the tree.
 */
-  connected = ( int * ) malloc ( NV * sizeof ( int ) );
+  connected =(int * ) malloc(NV * sizeof(int ) );
 
   connected[0] = 1;
-  for ( i = 1; i < NV; i++ )
-  {
+  for(i = 1; i < NV; i++ ){
     connected[i] = 0;
   }
 /*
   Initial estimate of minimum distance is the 1-step distance.
 */
-  mind = ( int * ) malloc ( NV * sizeof ( int ) );
+  mind =(int * ) malloc(NV * sizeof(int ) );
 
-  for ( i = 0; i < NV; i++ )
-  {
+  for(i = 0; i < NV; i++ ){
     mind[i] = ohd[0][i];
   }
 /*
   Begin the parallel region.
 */
-  # pragma omp parallel private ( my_first, my_id, my_last, my_md, my_mv, my_step ) \
-  shared ( connected, md, mind, mv, nth, ohd )
+  # pragma omp parallel private(my_first, my_id, my_last, my_md, my_mv, my_step ) \
+  shared(connected, md, mind, mv, nth, ohd )
   {
-    my_id = omp_get_thread_num ( );
-    nth = omp_get_num_threads ( ); 
-    my_first =   (   my_id       * NV ) / nth;
-    my_last  =   ( ( my_id + 1 ) * NV ) / nth - 1;
+    my_id = omp_get_thread_num();
+    nth = omp_get_num_threads(); 
+    my_first = (my_id *NV)/nth;
+    my_last  = ((my_id + 1 ) *NV )/nth - 1;
 /*
   The SINGLE directive means that the block is to be executed by only
   one thread, and that thread will be whichever one gets here first.
 */
     # pragma omp single
     {
-      printf ( "\n" );
-      printf ( "  P%d: Parallel region begins with %d threads\n", my_id, nth );
-      printf ( "\n" );
+      printf("\n" );
+      printf("  P%d: Parallel region begins with %d threads\n", my_id, nth );
+      printf("\n" );
     }
-    fprintf ( stdout, "  P%d:  First=%d  Last=%d\n", my_id, my_first, my_last );
+    fprintf(stdout, "  P%d:  First=%d  Last=%d\n", my_id, my_first, my_last );
 
-    for ( my_step = 1; my_step < NV; my_step++ )
-    {
+    for(my_step = 1; my_step < NV; my_step++ ){
 /*
   Before we compare the results of each thread, set the shared variable 
   MD to a big value.  Only one thread needs to do this.
@@ -238,14 +175,14 @@ int *dijkstra_distance ( int ohd[NV][NV]  )
   Each thread finds the nearest unconnected node in its part of the graph.
   Some threads might have no unconnected nodes left.
 */
-      find_nearest ( my_first, my_last, mind, connected, &my_md, &my_mv );
+      find_nearest(my_first, my_last, mind, connected, &my_md, &my_mv );
 /*
   In order to determine the minimum of all the MY_MD's, we must insist
   that only one thread at a time execute this block!
 */
       # pragma omp critical
       {
-        if ( my_md < md )  
+        if(my_md < md )  
         {
           md = my_md;
           mv = my_mv;
@@ -266,10 +203,10 @@ int *dijkstra_distance ( int ohd[NV][NV]  )
 */
       # pragma omp single 
       {
-        if ( mv != - 1 )
+        if(mv != - 1 )
         {
           connected[mv] = 1;
-          printf ( "  P%d: Connecting node %d.\n", my_id, mv );
+          printf("  P%d: Connecting node %d.\n", my_id, mv );
         }
       }
 /*
@@ -282,9 +219,9 @@ int *dijkstra_distance ( int ohd[NV][NV]  )
   by checking to see whether the trip from 0 to MV plus the step
   from MV to a node is closer than the current record.
 */
-      if ( mv != -1 )
+      if(mv != -1 )
       {
-        update_mind ( my_first, my_last, mv, connected, ohd, mind );
+        update_mind(my_first, my_last, mv, connected, ohd, mind );
       }
 /*
   Before starting the next step of the iteration, we need all threads 
@@ -297,18 +234,18 @@ int *dijkstra_distance ( int ohd[NV][NV]  )
 */
     # pragma omp single
     {
-      printf ( "\n" );
-      printf ( "  P%d: Exiting parallel region.\n", my_id );
+      printf("\n" );
+      printf("  P%d: Exiting parallel region.\n", my_id );
     }
   }
 
-  free ( connected );
+  free(connected );
 
   return mind;
 }
 /******************************************************************************/
 
-void find_nearest ( int s, int e, int mind[NV], int connected[NV], int *d, 
+void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d, 
   int *v )
 
 /******************************************************************************/
@@ -353,9 +290,9 @@ void find_nearest ( int s, int e, int mind[NV], int connected[NV], int *d,
   *d = i4_huge;
   *v = -1;
 
-  for ( i = s; i <= e; i++ )
+  for(i = s; i <= e; i++ )
   {
-    if ( !connected[i] && ( mind[i] < *d ) )
+    if(!connected[i] &&(mind[i] < *d ) )
     {
       *d = mind[i];
       *v = i;
@@ -365,7 +302,7 @@ void find_nearest ( int s, int e, int mind[NV], int connected[NV], int *d,
 }
 /******************************************************************************/
 
-void init ( int ohd[NV][NV] )
+void init(int ohd[NV][NV] )
 
 /******************************************************************************/
 /*
@@ -411,20 +348,14 @@ void init ( int ohd[NV][NV] )
     nodes I and J.
 */
 {
-  int i;
+  int i,j;
   int i4_huge = 2147483647;
-  int j;
 
-  for ( i = 0; i < NV; i++ )  
-  {
-    for ( j = 0; j < NV; j++ )
-    {
-      if ( i == j ) 
-      {
+  for(i = 0; i < NV; i++ ) {
+    for(j = 0; j < NV; j++ ){
+      if(i == j){
         ohd[i][i] = 0;
-      }
-      else
-      {
+      }else{
         ohd[i][j] = i4_huge;
       }
     }
@@ -440,36 +371,8 @@ void init ( int ohd[NV][NV] )
 
   return;
 }
-/******************************************************************************/
 
-void timestamp ( void )
-
-/******************************************************************************/
-/*
-  Purpose:
-
-    TIMESTAMP prints the current YMDHMS date as a time stamp.
-
-  Example:
-
-    31 May 2001 09:45:54 AM
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    24 September 2003
-
-  Author:
-
-    John Burkardt
-
-  Parameters:
-
-    None
-*/
+void timestamp(void)
 {
 # define TIME_SIZE 40
 
@@ -477,22 +380,20 @@ void timestamp ( void )
   const struct tm *tm;
   time_t now;
 
-  now = time ( NULL );
-  tm = localtime ( &now );
+  now = time(NULL);
+  tm = localtime(&now);
 
-  strftime ( time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm );
+  strftime(time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm );
 
-  printf ( "%s\n", time_buffer );
+  printf("%s\n", time_buffer );
 
   return;
 # undef TIME_SIZE
 }
-/******************************************************************************/
 
-void update_mind ( int s, int e, int mv, int connected[NV], int ohd[NV][NV],
+
+void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV],
   int mind[NV] )
-
-/******************************************************************************/
 /*
   Purpose:
 
@@ -540,14 +441,10 @@ void update_mind ( int s, int e, int mv, int connected[NV], int ohd[NV][NV],
   int i;
   int i4_huge = 2147483647;
 
-  for ( i = s; i <= e; i++ )
-  {
-    if ( !connected[i] )
-    {
-      if ( ohd[mv][i] < i4_huge )
-      {
-        if ( mind[mv] + ohd[mv][i] < mind[i] )  
-        {
+  for(i = s; i <= e; i++ ){
+    if(!connected[i]){
+      if(ohd[mv][i] < i4_huge){
+        if(mind[mv] + ohd[mv][i] < mind[i]){
           mind[i] = mind[mv] + ohd[mv][i];
         }
       }
