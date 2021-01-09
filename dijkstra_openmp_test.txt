@@ -1,0 +1,239 @@
+03 January 2021 09:56:20 AM
+
+DIJKSTRA_OPENMP
+  C version
+  Use Dijkstra's algorithm to determine the minimum
+  distance from node 0 to each node in a graph,
+  given the distances between each pair of nodes.
+
+  Although a very small example is considered, we
+  demonstrate the use of OpenMP directives for
+  parallel execution.
+
+  Distance matrix:
+
+    0   40   15  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+   40    0   20   10   25    6  Inf  Inf  Inf  Inf  Inf  Inf
+   15   20    0  100  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   10  100    0  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   25  Inf  Inf    0    8  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf    6  Inf  Inf    8    0  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0
+
+  P0: Parallel region begins with 1 threads
+
+  P0:  First=0  Last=11
+  P0: Connecting node 2.
+  P0: Connecting node 1.
+  P0: Connecting node 5.
+  P0: Connecting node 3.
+  P0: Connecting node 4.
+
+  P0: Exiting parallel region.
+
+  Minimum distances from node 0:
+
+   0   0
+   1  35
+   2  15
+   3  45
+   4  49
+   5  41
+   6  2147483647
+   7  2147483647
+   8  2147483647
+   9  2147483647
+  10  2147483647
+  11  2147483647
+
+DIJKSTRA_OPENMP
+  Normal end of execution.
+
+03 January 2021 09:56:20 AM
+03 January 2021 09:56:20 AM
+
+DIJKSTRA_OPENMP
+  C version
+  Use Dijkstra's algorithm to determine the minimum
+  distance from node 0 to each node in a graph,
+  given the distances between each pair of nodes.
+
+  Although a very small example is considered, we
+  demonstrate the use of OpenMP directives for
+  parallel execution.
+
+  Distance matrix:
+
+    0   40   15  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+   40    0   20   10   25    6  Inf  Inf  Inf  Inf  Inf  Inf
+   15   20    0  100  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   10  100    0  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   25  Inf  Inf    0    8  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf    6  Inf  Inf    8    0  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0
+
+  P0: Parallel region begins with 2 threads
+
+  P1:  First=6  Last=11
+  P0:  First=0  Last=5
+  P1: Connecting node 2.
+  P0: Connecting node 1.
+  P0: Connecting node 5.
+  P0: Connecting node 3.
+  P0: Connecting node 4.
+
+  P0: Exiting parallel region.
+
+  Minimum distances from node 0:
+
+   0   0
+   1  35
+   2  15
+   3  45
+   4  49
+   5  41
+   6  2147483647
+   7  2147483647
+   8  2147483647
+   9  2147483647
+  10  2147483647
+  11  2147483647
+
+DIJKSTRA_OPENMP
+  Normal end of execution.
+
+03 January 2021 09:56:20 AM
+03 January 2021 09:56:20 AM
+
+DIJKSTRA_OPENMP
+  C version
+  Use Dijkstra's algorithm to determine the minimum
+  distance from node 0 to each node in a graph,
+  given the distances between each pair of nodes.
+
+  Although a very small example is considered, we
+  demonstrate the use of OpenMP directives for
+  parallel execution.
+
+  Distance matrix:
+
+    0   40   15  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+   40    0   20   10   25    6  Inf  Inf  Inf  Inf  Inf  Inf
+   15   20    0  100  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   10  100    0  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   25  Inf  Inf    0    8  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf    6  Inf  Inf    8    0  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0
+
+  P2: Parallel region begins with 4 threads
+
+  P0:  First=0  Last=2
+  P2:  First=6  Last=8
+  P3:  First=9  Last=11
+  P1:  First=3  Last=5
+  P1: Connecting node 2.
+  P3: Connecting node 1.
+  P1: Connecting node 5.
+  P1: Connecting node 3.
+  P3: Connecting node 4.
+
+  P3: Exiting parallel region.
+
+  Minimum distances from node 0:
+
+   0   0
+   1  35
+   2  15
+   3  45
+   4  49
+   5  41
+   6  2147483647
+   7  2147483647
+   8  2147483647
+   9  2147483647
+  10  2147483647
+  11  2147483647
+
+DIJKSTRA_OPENMP
+  Normal end of execution.
+
+03 January 2021 09:56:20 AM
+03 January 2021 09:56:20 AM
+
+DIJKSTRA_OPENMP
+  C version
+  Use Dijkstra's algorithm to determine the minimum
+  distance from node 0 to each node in a graph,
+  given the distances between each pair of nodes.
+
+  Although a very small example is considered, we
+  demonstrate the use of OpenMP directives for
+  parallel execution.
+
+  Distance matrix:
+
+    0   40   15  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+   40    0   20   10   25    6  Inf  Inf  Inf  Inf  Inf  Inf
+   15   20    0  100  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   10  100    0  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf   25  Inf  Inf    0    8  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf    6  Inf  Inf    8    0  Inf  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0  Inf
+  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf  Inf    0
+
+  P2: Parallel region begins with 8 threads
+
+  P2:  First=3  Last=3
+  P4:  First=6  Last=6
+  P0:  First=0  Last=0
+  P6:  First=9  Last=9
+  P1:  First=1  Last=2
+  P5:  First=7  Last=8
+  P7:  First=10  Last=11
+  P3:  First=4  Last=5
+  P4: Connecting node 2.
+  P2: Connecting node 1.
+  P2: Connecting node 5.
+  P2: Connecting node 3.
+  P2: Connecting node 4.
+
+  P2: Exiting parallel region.
+
+  Minimum distances from node 0:
+
+   0   0
+   1  35
+   2  15
+   3  45
+   4  49
+   5  41
+   6  2147483647
+   7  2147483647
+   8  2147483647
+   9  2147483647
+  10  2147483647
+  11  2147483647
+
+DIJKSTRA_OPENMP
+  Normal end of execution.
+
+03 January 2021 09:56:20 AM
