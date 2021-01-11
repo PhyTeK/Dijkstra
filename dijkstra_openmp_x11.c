@@ -11,7 +11,9 @@
 # define NV 6
 Display *dis;
 int screen;
-Window win;
+Screen *screenWindow;
+int screenWidth=600,screenHeight=600;
+Window win,*winp;
 GC gc;
 
 unsigned long salmon;
@@ -33,6 +35,7 @@ void create_colormap();
 
 int main (int argc, char **argv) {
 	XEvent event;
+	XWindowAttributes watt;
 	KeySym key;	
 	char text[255];
 	long int i,j,x,y;
@@ -48,7 +51,15 @@ int main (int argc, char **argv) {
 	init( ohd );
 	init_x();
 	get_colors();
-	mind = dijkstra_distance(ohd); 	
+	mind = dijkstra_distance(ohd); 
+	timestamp();		
+	fprintf(stdout, "\n" );
+	fprintf(stdout, "  Minimum distances from node 0:\n");
+	fprintf(stdout, "\n" );
+	for(i = 0; i < NV; i++ )
+	{
+		fprintf(stdout, "  %2d  %2d\n", i, mind[i] );
+	}
 	
 	while(1) {		
 		XNextEvent(dis, &event);
@@ -72,18 +83,26 @@ int main (int argc, char **argv) {
 			//XDrawRectangle(dis, win, gc, 100, 100, 200, 400);
 			//XFillRectangle(dis,win,gc, 300, 300, 30, 30);
 			XSetForeground(dis,gc,salmon);
+			XGetWindowAttributes(dis, win, &watt);
+			screenHeight = watt.height;
+			screenWidth = watt.width;
+			//printf("\t%dX%d\n",screenWidth,screenHeight);
 			
 			while(i<NV){
 				x = rand()%screenWidth;
-				y = rand()%screenHight;
-				nodex[i] = x;
-				nodey[i] = y;
+				y = rand()%screenHeight;
+				//nodex[i] = x;
+				//nodey[i] = y;
 				
-				XDrawArc(dis,win,gc,x,y,5,5,0,23040);
+				XFillArc(dis,win,gc,x,y,5,5,0,64*360);
 				i++;
 			}
 		}
 	}
+	
+
+	free(mind);
+	return 0;	
 }
 
 void init_x() {
@@ -92,11 +111,13 @@ void init_x() {
 
 	dis=XOpenDisplay((char *)0);
    	screen=DefaultScreen(dis);
+   	screenWindow = ScreenOfDisplay(dis, screen);
 	black=BlackPixel(dis,screen),
 	white=WhitePixel(dis, screen);
    	win=XCreateSimpleWindow(dis,DefaultRootWindow(dis),0,0,	
-		300, 300, 5,black, white);
-	XSetStandardProperties(dis,win,"Dijkstra","Dijkstra",None,NULL,0,NULL);
+		screenWidth, screenHeight, 5,black, white);
+	winp = &win;
+	XSetStandardProperties(dis,win,"Dijkstra","Dijk",None,NULL,0,NULL);
 	XSelectInput(dis, win, ExposureMask|ButtonPressMask|KeyPressMask);
         gc=XCreateGC(dis, win, 0,0);        
 	XSetBackground(dis,gc,white);
@@ -140,6 +161,7 @@ void create_colormap() {
 	XStoreColors(dis, cmap, tmp,255);
 	XSetWindowColormap(dis,win,cmap);
 };
+
 void timestamp(void)
 {
 # define TIME_SIZE 40
@@ -162,7 +184,7 @@ void timestamp(void)
 void init(int ohd[NV][NV])
 {
   int i,j;
-  int i4_huge = 2147483647;
+  int i4_huge = INT_MAX;
 
   for(i = 0; i < NV; i++ ) {
     for(j = 0; j < NV; j++ ){
@@ -413,6 +435,7 @@ void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV],
   }
   return;
 }
+
 void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d, 
   int *v )
 
