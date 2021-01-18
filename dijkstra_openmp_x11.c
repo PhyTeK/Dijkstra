@@ -7,8 +7,11 @@
 #include <limits.h>
 #include <time.h>
 #include <omp.h>
+#include <math.h>
 
-# define NV 6
+# define NV 200
+# define NTHREADS 4
+# define MAXD 50
 Display *dis;
 int screen;
 Screen *screenWindow;
@@ -21,145 +24,179 @@ unsigned long salmon;
 int main(int argc, char **argv );
 int *dijkstra_distance(int ohd[NV][NV] );
 void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d, 
-  int *v );
-void init(int ohd[NV][NV] );
+		  int *v );
+int init(int ohd[NV][NV],int *,int *);
 void timestamp(void );
-void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV], 
-  int mind[NV] );
+void update_mind(int s, int e, int mv, int connected[NV],
+		 int ohd[NV][NV], int mind[NV] );
 
 void init_x();
 void close_x();
 void redraw();
 void get_colors();
 void create_colormap();
-
+void draw_path(int,int *,int *);
 int main (int argc, char **argv) {
-	XEvent event;
-	XWindowAttributes watt;
-	KeySym key;	
-	char text[255];
-	long int i,j,x,y;
-	int screenWidth=1680;
-	int screenHight=1050;
-	int nodex[NV], nodey[NV];
-	int i4_huge = INT_MAX;
-	int *mind;
-	int ohd[NV][NV];
+  XEvent event;
+  XWindowAttributes watt;
+  KeySym key;	
+  char text[255];
+  char str[12];
+  unsigned int i,j,k,x,y;
+  int screenWidth=1680;
+  int screenHight=1050;
+  int nodex[NV+1], nodey[NV+1];
+  int i4_huge = INT_MAX;
+  int *mind;
+  int ohd[NV][NV];
 
-	timestamp( );
+  timestamp();
+  init_x();
+  get_colors();
+	
+  while(1) {		
+    XNextEvent(dis, &event);
+	
+    if (event.type==Expose && event.xexpose.count==0) {
+      redraw();
+    }
+    if (event.type==KeyPress &&
+	XLookupString(&event.xkey,text,255,&key,0)== 1) {
+      if (text[0]=='q') {
+	close_x();
+      }
+    }
+    if (event.type==ButtonPress) {
+      //int x=event.xbutton.x,
+      //    y=event.xbutton.y;
+      //XDrawString(dis,win,gc,x,y, text, strlen(text));
+      //XDrawLine(dis,win,gc, 0,0, 1000,500);
+      //XDrawArc(dis,win,gc,100,100, 400, 500, 300, 10000);
+      //XDrawRectangle(dis, win, gc, 100, 100, 200, 400);
+      //XFillRectangle(dis,win,gc, 300, 300, 30, 30);
+      XSetForeground(dis,gc,salmon);
+      XGetWindowAttributes(dis, win, &watt);
+      screenHeight = watt.height;
+      screenWidth = watt.width;
+      //printf("\t%dX%d\n",screenWidth,screenHeight);
 
-	init( ohd );
-	init_x();
-	get_colors();
-	mind = dijkstra_distance(ohd); 
-	timestamp();		
-	fprintf(stdout, "\n" );
-	fprintf(stdout, "  Minimum distances from node 0:\n");
-	fprintf(stdout, "\n" );
-	for(i = 0; i < NV; i++ )
-	{
-		fprintf(stdout, "  %2d  %2d\n", i, mind[i] );
-	}
-	
-	while(1) {		
-		XNextEvent(dis, &event);
-	
-		if (event.type==Expose && event.xexpose.count==0) {
-			redraw();
-		}
-		if (event.type==KeyPress &&
-		    XLookupString(&event.xkey,text,255,&key,0)== 1) {
-			if (text[0]=='q') {
-				close_x();
-			}
-		}
-		if (event.type==ButtonPress) {
-			//int x=event.xbutton.x,
-			//    y=event.xbutton.y;
-			i=0;
-			//XDrawString(dis,win,gc,x,y, text, strlen(text));
-			//XDrawLine(dis,win,gc, 0,0, 1000,500);
-			//XDrawArc(dis,win,gc,100,100, 400, 500, 300, 10000);
-			//XDrawRectangle(dis, win, gc, 100, 100, 200, 400);
-			//XFillRectangle(dis,win,gc, 300, 300, 30, 30);
-			XSetForeground(dis,gc,salmon);
-			XGetWindowAttributes(dis, win, &watt);
-			screenHeight = watt.height;
-			screenWidth = watt.width;
-			//printf("\t%dX%d\n",screenWidth,screenHeight);
-			
-			while(i<NV){
-				x = rand()%screenWidth;
-				y = rand()%screenHeight;
-				//nodex[i] = x;
-				//nodey[i] = y;
+      redraw();
+
+      // Initialize nodes and draw them on window
+      k=0;
+      nodex[k]=nodey[k]=0;
+      XFillArc(dis,win,gc,0,0,10,10,0,64*360);
+
+      sprintf(str, "%d", 0);
+      XDrawString(dis,win,gc,5,20,str,strlen(str));
+
+      // Draw nodes and save nodes positions
+      while(k<NV){
+	k++;
+	x = rand()%screenWidth;
+	y = rand()%screenHeight;
+	nodex[k] = x;
+	nodey[k] = y;
 				
-				XFillArc(dis,win,gc,x,y,5,5,0,64*360);
-				i++;
-			}
-		}
+	XFillArc(dis,win,gc,x,y,10,10,0,64*360);
+
+	sprintf(str, "%d", k);
+	XDrawString(dis,win,gc,x,y,str,strlen(str));
+
+      }
+
+      // Init OHD matrix
+      init(ohd,&nodex[0],&nodey[0]);
+
+      fprintf(stdout, "\n" );
+      fprintf(stdout, "  Distance matrix:\n" );
+      fprintf(stdout, "\n" );
+      for(i = 0; i < NV; i++ ) {
+	for(j = 0; j < NV; j++ ) {
+	  if(ohd[i][j] == i4_huge ) {
+	    fprintf(stdout, "  Inf" );
+	  }else{
+	    fprintf(stdout, "  %d", ohd[i][j] );
+	  }
 	}
+	fprintf(stdout, "\n" );
+      }
+      mind = dijkstra_distance(ohd); 
+      timestamp();		
+      fprintf(stdout, "\n" );
+      fprintf(stdout, "  Minimum distances from node 0:\n");
+      fprintf(stdout, "\n" );
+      for(i = 0; i < NV; i++){
+	fprintf(stdout, "  %d  %d\n", i, mind[i]);
+      }
+
+      // Draw shortest path
+      draw_path(NV,&nodex[0],&nodey[0]);
+
+    }
+  }
+
 	
 
-	free(mind);
-	return 0;	
+  free(mind);
+  return 0;	
 }
 
 void init_x() {
        
-	unsigned long black,white;
+  unsigned long black,white;
 
-	dis=XOpenDisplay((char *)0);
-   	screen=DefaultScreen(dis);
-   	screenWindow = ScreenOfDisplay(dis, screen);
-	black=BlackPixel(dis,screen),
-	white=WhitePixel(dis, screen);
-   	win=XCreateSimpleWindow(dis,DefaultRootWindow(dis),0,0,	
-		screenWidth, screenHeight, 5,black, white);
-	winp = &win;
-	XSetStandardProperties(dis,win,"Dijkstra","Dijk",None,NULL,0,NULL);
-	XSelectInput(dis, win, ExposureMask|ButtonPressMask|KeyPressMask);
-        gc=XCreateGC(dis, win, 0,0);        
-	XSetBackground(dis,gc,white);
-	XSetForeground(dis,gc,black);
-	XClearWindow(dis, win);
-	XMapRaised(dis, win);
+  dis = XOpenDisplay((char *)0);
+  screen = DefaultScreen(dis);
+  screenWindow = ScreenOfDisplay(dis, screen);
+  black = BlackPixel(dis,screen),
+    white = WhitePixel(dis, screen);
+  win = XCreateSimpleWindow(dis,DefaultRootWindow(dis),0,0,	
+			    screenWidth, screenHeight, 5,black, white);
+  winp = &win;
+  XSetStandardProperties(dis,win,"Dijkstra","Dijk",None,NULL,0,NULL);
+  XSelectInput(dis, win, ExposureMask|ButtonPressMask|KeyPressMask);
+  gc = XCreateGC(dis, win, 0,0);        
+  XSetBackground(dis,gc,white);
+  XSetForeground(dis,gc,black);
+  XClearWindow(dis, win);
+  XMapRaised(dis, win);
 };
 
 void close_x() {
-	XFreeGC(dis, gc);
-	XDestroyWindow(dis,win);
-	XCloseDisplay(dis);	
-	exit(1);				
+  XFreeGC(dis, gc);
+  XDestroyWindow(dis,win);
+  XCloseDisplay(dis);	
+  exit(1);				
 };
 
 void redraw() {
-	XClearWindow(dis, win);
+  XClearWindow(dis, win);
 };
 
 void get_colors() {
-	XColor tmp;
+  XColor tmp;
 
-	XParseColor(dis, DefaultColormap(dis,screen), "salmon", &tmp);
-	XAllocColor(dis,DefaultColormap(dis,screen),&tmp);
-	salmon=tmp.pixel;
+  XParseColor(dis, DefaultColormap(dis,screen), "salmon", &tmp);
+  XAllocColor(dis,DefaultColormap(dis,screen),&tmp);
+  salmon=tmp.pixel;
 };
 void create_colormap() {
-	int i;
-	Colormap cmap;
-	XColor tmp[255];
+  int i;
+  Colormap cmap;
+  XColor tmp[255];
 
-	for(i=0;i<255;i++) {
-		tmp[i].pixel=i;
-		tmp[i].flags=DoRed|DoGreen|DoBlue;
-		tmp[i].red=i*256;
-		tmp[i].blue=i*256;
-		tmp[i].green=i*256;
-	}	
-	cmap=XCreateColormap(dis,RootWindow(dis,screen),
-		DefaultVisual(dis,screen),AllocAll);
-	XStoreColors(dis, cmap, tmp,255);
-	XSetWindowColormap(dis,win,cmap);
+  for(i=0;i<255;i++) {
+    tmp[i].pixel=i;
+    tmp[i].flags=DoRed|DoGreen|DoBlue;
+    tmp[i].red=i*256;
+    tmp[i].blue=i*256;
+    tmp[i].green=i*256;
+  }	
+  cmap=XCreateColormap(dis,RootWindow(dis,screen),
+		       DefaultVisual(dis,screen),AllocAll);
+  XStoreColors(dis, cmap, tmp,255);
+  XSetWindowColormap(dis,win,cmap);
 };
 
 void timestamp(void)
@@ -181,74 +218,79 @@ void timestamp(void)
 # undef TIME_SIZE
 }
 
-void init(int ohd[NV][NV])
+int init(int ohd[NV][NV],int *ndx,int *ndy)
 {
   int i,j;
+  double x,y;
   int i4_huge = INT_MAX;
+
+  //for(i=0;i<NV;i++)
+  //printf("i=%d, ndx=%d, ndy=%d\n",i,ndx[i],ndy[i]);
 
   for(i = 0; i < NV; i++ ) {
     for(j = 0; j < NV; j++ ){
       if(i == j){
         ohd[i][i] = 0;
-      }else{
+      }else{	
         ohd[i][j] = i4_huge;
       }
     }
   }
-  ohd[0][1] = ohd[1][0] = 40;
-  ohd[0][2] = ohd[2][0] = 15;
-  ohd[1][2] = ohd[2][1] = 20;
-  ohd[1][3] = ohd[3][1] = 10;
-  ohd[1][4] = ohd[4][1] = 25;
-  ohd[2][3] = ohd[3][2] = 100;
-  ohd[1][5] = ohd[5][1] = 6;
-  ohd[4][5] = ohd[5][4] = 8;
-
-  return;
+  
+  // Initialize all consecutive nodes with the inter distances.
+ 
+  for (i = 0; i < NV ; i++){
+    for(j = i; j < NV; j++){ 
+    x = (double)(ndx[i]-ndx[j]);
+    y = (double)(ndy[i]-ndy[j]);
+	ohd[j][i] = ohd[i][j] = (int)sqrt(x*x+y*y);
+    }
+  }	
+  return 0;
 }
 
 int *dijkstra_distance(int ohd[NV][NV])
 /*
   Purpose:
 
-    DIJKSTRA_DISTANCE uses Dijkstra's minimum distance algorithm.
+  DIJKSTRA_DISTANCE uses Dijkstra's minimum distance algorithm.
 
   Discussion:
 
-    We essentially build a tree.  We start with only node 0 connected
-    to the tree, and this is indicated by setting CONNECTED[0] = 1.
+  We essentially build a tree.  We start with only node 0 connected
+  to the tree, and this is indicated by setting CONNECTED[0] = 1.
 
-    We initialize MIND[I] to the one step distance from node 0 to node I.
+  We initialize MIND[I] to the one step distance from node 0 to node I.
     
-    Now we search among the unconnected nodes for the node MV whose minimum
-    distance is smallest, and connect it to the tree.  For each remaining
-    unconnected node I, we check to see whether the distance from 0 to MV
-    to I is less than that recorded in MIND[I], and if so, we can reduce
-    the distance.
+  Now we search among the unconnected nodes for the node MV whose minimum
+  distance is smallest, and connect it to the tree.  For each remaining
+  unconnected node I, we check to see whether the distance from 0 to MV
+  to I is less than that recorded in MIND[I], and if so, we can reduce
+  the distance.
 
-    After NV-1 steps, we have connected all the nodes to 0, and computed
-    the correct minimum distances.
+  After NV-1 steps, we have connected all the nodes to 0, and computed
+  the correct minimum distances.
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+  This code is distributed under the GNU LGPL license. 
 
   Modified:
 
-    02 July 2010
+  02 July 2010
 
   Author:
 
-    Original C version by Norm Matloff, CS Dept, UC Davis.
-    This C version by John Burkardt.
+  Original C version by Norm Matloff, CS Dept, UC Davis.
+  This C version by John Burkardt.
 
   Parameters:
 
-    Input, int OHD[NV][NV], the distance of the direct link between
-    nodes I and J.
+  Input, int OHD[NV][NV], the distance of the direct link between
+  nodes I and J.
 
-    Output, int DIJKSTRA_DISTANCE[NV], the minimum distance from 
-    node 0 to each node.
+  Output, int DIJKSTRA_DISTANCE[NV], the minimum distance from 
+  node 0 to each node.
 */
 {
   int *connected;
@@ -278,15 +320,15 @@ int *dijkstra_distance(int ohd[NV][NV])
     mind[i] = ohd[0][i];
   }
 
- # pragma omp parallel private(my_first, my_id, my_last, my_md, my_mv, my_step ) \
+# pragma omp parallel private(my_first, my_id, my_last, my_md, my_mv, my_step ) \
   shared(connected, md, mind, mv, nth, ohd )
   {
     my_id = omp_get_thread_num();
-    nth = omp_get_num_threads(); 
-    my_first = (my_id *NV)/nth;
-    my_last  = ((my_id + 1 ) *NV )/nth - 1;
+    nth = omp_get_num_threads();
+    my_first = (my_id*NV)/nth;
+    my_last  = ((my_id + 1 ) *NV )/nth;
 
-    # pragma omp single
+# pragma omp single
     {
       printf("\n" );
       printf("  P%d: Parallel region begins with %d threads\n", my_id, nth );
@@ -295,77 +337,77 @@ int *dijkstra_distance(int ohd[NV][NV])
     fprintf(stdout, "  P%d:  First=%d  Last=%d\n", my_id, my_first, my_last );
 
     for(my_step = 1; my_step < NV; my_step++ ){
-/*
-  Before we compare the results of each thread, set the shared variable 
-  MD to a big value.  Only one thread needs to do this.
-*/
-      # pragma omp single 
+      /*
+	Before we compare the results of each thread, set the shared variable 
+	MD to a big value.  Only one thread needs to do this.
+      */
+# pragma omp single 
       {
         md = i4_huge;
         mv = -1; 
       }
-/*
-  Each thread finds the nearest unconnected node in its part of the graph.
-  Some threads might have no unconnected nodes left.
-*/
+      /*
+	Each thread finds the nearest unconnected node in its part of the graph.
+	Some threads might have no unconnected nodes left.
+      */
       find_nearest(my_first, my_last, mind, connected, &my_md, &my_mv );
-/*
-  In order to determine the minimum of all the MY_MD's, we must insist
-  that only one thread at a time execute this block!
-*/
-      # pragma omp critical
+      /*
+	In order to determine the minimum of all the MY_MD's, we must insist
+	that only one thread at a time execute this block!
+      */
+# pragma omp critical
       {
         if(my_md < md )  
-        {
-          md = my_md;
-          mv = my_mv;
-        }
+	  {
+	    md = my_md;
+	    mv = my_mv;
+	  }
       }
-/*
-  This barrier means that ALL threads have executed the critical
-  block, and therefore MD and MV have the correct value.  Only then
-  can we proceed.
-*/
-      # pragma omp barrier
-/*
-  If MV is -1, then NO thread found an unconnected node, so we're done early. 
-  OpenMP does not like to BREAK out of a parallel region, so we'll just have 
-  to let the iteration run to the end, while we avoid doing any more updates.
+      /*
+	This barrier means that ALL threads have executed the critical
+	block, and therefore MD and MV have the correct value.  Only then
+	can we proceed.
+      */
+# pragma omp barrier
+      /*
+	If MV is -1, then NO thread found an unconnected node, so we're done early. 
+	OpenMP does not like to BREAK out of a parallel region, so we'll just have 
+	to let the iteration run to the end, while we avoid doing any more updates.
 
-  Otherwise, we connect the nearest node.
-*/
-      # pragma omp single 
+	Otherwise, we connect the nearest node.
+      */
+# pragma omp single 
       {
         if(mv != - 1 )
-        {
-          connected[mv] = 1;
-          printf("  P%d: Connecting node %d.\n", my_id, mv );
-        }
+	  {
+	    connected[mv] = 1;
+	    printf("  P%d: Connecting node %d.\n", my_id, mv );
+	  }
       }
-/*
-  Again, we don't want any thread to proceed until the value of
-  CONNECTED is updated.
-*/
-      # pragma omp barrier
-/*
-  Now each thread should update its portion of the MIND vector,
-  by checking to see whether the trip from 0 to MV plus the step
-  from MV to a node is closer than the current record.
-*/
+      /*
+	Again, we don't want any thread to proceed until the value of
+	CONNECTED is updated.
+      */
+# pragma omp barrier
+      /*
+	Now each thread should update its portion of the MIND vector,
+	by checking to see whether the trip from 0 to MV plus the step
+	from MV to a node is closer than the current record.
+      */
       if(mv != -1 )
-      {
-        update_mind(my_first, my_last, mv, connected, ohd, mind );
-      }
-/*
-  Before starting the next step of the iteration, we need all threads 
-  to complete the updating, so we set a BARRIER here.
-*/
-      #pragma omp barrier
+	{
+	  update_mind(my_first, my_last, mv, connected, ohd, mind );
+	}
+      /*
+	Before starting the next step of the iteration, we need all threads 
+	to complete the updating, so we set a BARRIER here.
+      */
+#pragma omp barrier
     }
-/*
-  Once all the nodes have been connected, we can exit.
-*/
-    # pragma omp single
+    /*
+      Once all the nodes have been connected, we can exit.
+    */
+# pragma omp single
     {
       printf("\n" );
       printf("  P%d: Exiting parallel region.\n", my_id );
@@ -377,49 +419,49 @@ int *dijkstra_distance(int ohd[NV][NV])
   return mind;
 }
 void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV],
-  int mind[NV] )
+		 int mind[NV] )
 /*
   Purpose:
 
-    UPDATE_MIND updates the minimum distance vector.
+  UPDATE_MIND updates the minimum distance vector.
 
   Discussion:
 
-    We've just determined the minimum distance to node MV.
+  We've just determined the minimum distance to node MV.
 
-    For each unconnected node I in the range S to E,
-    check whether the route from node 0 to MV to I is shorter
-    than the currently known minimum distance.
+  For each unconnected node I in the range S to E,
+  check whether the route from node 0 to MV to I is shorter
+  than the currently known minimum distance.
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+  This code is distributed under the GNU LGPL license. 
 
   Modified:
 
-    02 July 2010
+  02 July 2010
 
   Author:
 
-    Original C version by Norm Matloff, CS Dept, UC Davis.
-    This C version by John Burkardt.
+  Original C version by Norm Matloff, CS Dept, UC Davis.
+  This C version by John Burkardt.
 
   Parameters:
 
-    Input, int S, E, the first and last nodes that are to be checked.
+  Input, int S, E, the first and last nodes that are to be checked.
 
-    Input, int MV, the node whose minimum distance to node 0
-    has just been determined.
+  Input, int MV, the node whose minimum distance to node 0
+  has just been determined.
 
-    Input, int CONNECTED[NV], is 1 for each connected node, whose 
-    minimum distance to node 0 has been determined.
+  Input, int CONNECTED[NV], is 1 for each connected node, whose 
+  minimum distance to node 0 has been determined.
 
-    Input, int OHD[NV][NV], the distance of the direct link between
-    nodes I and J.
+  Input, int OHD[NV][NV], the distance of the direct link between
+  nodes I and J.
 
-    Input/output, int MIND[NV], the currently computed minimum distances
-    from node 0 to each node.  On output, the values for nodes S through
-    E have been updated.
+  Input/output, int MIND[NV], the currently computed minimum distances
+  from node 0 to each node.  On output, the values for nodes S through
+  E have been updated.
 */
 {
   int i;
@@ -437,42 +479,42 @@ void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV],
 }
 
 void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d, 
-  int *v )
+		  int *v )
 
 /******************************************************************************/
 /*
   Purpose:
 
-    FIND_NEAREST finds the nearest unconnected node.
+  FIND_NEAREST finds the nearest unconnected node.
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+  This code is distributed under the GNU LGPL license. 
 
   Modified:
 
-    02 July 2010
+  02 July 2010
 
   Author:
 
-    Original C version by Norm Matloff, CS Dept, UC Davis.
-    This C version by John Burkardt.
+  Original C version by Norm Matloff, CS Dept, UC Davis.
+  This C version by John Burkardt.
 
   Parameters:
 
-    Input, int S, E, the first and last nodes that are to be checked.
+  Input, int S, E, the first and last nodes that are to be checked.
 
-    Input, int MIND[NV], the currently computed minimum distance from
-    node 0 to each node.
+  Input, int MIND[NV], the currently computed minimum distance from
+  node 0 to each node.
 
-    Input, int CONNECTED[NV], is 1 for each connected node, whose 
-    minimum distance to node 0 has been determined.
+  Input, int CONNECTED[NV], is 1 for each connected node, whose 
+  minimum distance to node 0 has been determined.
 
-    Output, int *D, the distance from node 0 to the nearest unconnected 
-    node in the range S to E.
+  Output, int *D, the distance from node 0 to the nearest unconnected 
+  node in the range S to E.
 
-    Output, int *V, the index of the nearest unconnected node in the range
-    S to E.
+  Output, int *V, the index of the nearest unconnected node in the range
+  S to E.
 */
 {
   int i;
@@ -482,12 +524,18 @@ void find_nearest(int s, int e, int mind[NV], int connected[NV], int *d,
   *v = -1;
 
   for(i = s; i <= e; i++ )
-  {
-    if(!connected[i] &&(mind[i] < *d ) )
     {
-      *d = mind[i];
-      *v = i;
+      if(!connected[i] &&(mind[i] < *d ) )
+	{
+	  *d = mind[i];
+	  *v = i;
+	}
     }
-  }
   return;
+}
+
+void draw_path(int nmax,int *ndx,int *ndy){
+  for(int n=1;n<= nmax;n++){
+    XDrawLine(dis,win,gc, ndx[n-1],ndy[n-1],ndx[n],ndy[n]);
+  }
 }
