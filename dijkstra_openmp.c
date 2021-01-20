@@ -23,7 +23,7 @@ int main(int argc, char **argv )
 
   timestamp( );
 
-  init( ohd );
+  init(ohd );
 
   fprintf(stdout, "\n" );
   fprintf(stdout, "  Distance matrix:\n" );
