@@ -27,7 +27,7 @@ void find_nearest(int s, int e, int *,int mind[NV], int connected[NV], int *d,
 		  int *v );
 void init(int ohd[NV][NV],int *,int *);
 void timestamp(void );
-void update_mind(int s, int e, int mv, int connected[NV],
+void update_mind(int s, int e, int mv, int *node_id, int connected[NV],
     int ohd[NV][NV], int spath[NV][NV], int mind[NV] );
 
 void init_x();
@@ -36,6 +36,7 @@ void redraw();
 void get_colors();
 void create_colormap();
 void draw_path(int,int *,int *);
+void test_path(int ohd[NV][NV],int mind[NV],int spath[NV][NV]);
 
 
 
@@ -52,7 +53,7 @@ void main (int argc, char **argv) {
   int i4_huge = INT_MAX;
   int *mind;
   int ohd[NV][NV];    // Distance matrix
-  int spath[NV][NV];  // Shortest path
+  int spath[NV][NV];  // Shortest path between nodes 0 and i
   int sidx=0;
   
   timestamp();
@@ -114,7 +115,6 @@ void main (int argc, char **argv) {
 	nodey[k] = y;
 				
 	XFillArc(dis,win,gc,x,y,10,10,0,64*360);
-
 	sprintf(str, "%d", k);
 	XDrawString(dis,win,gc,x,y,str,strlen(str));
 
@@ -141,6 +141,12 @@ void main (int argc, char **argv) {
       mind = dijkstra_distance(ohd,spath,&sidx);
       
       timestamp();
+
+
+      // Test if sum of paths for each node is the same as in mind[NV]
+
+      test_path(ohd, mind,spath);
+	
       
       fprintf(stdout, "\n" );
       fprintf(stdout, "  Minimum distances from node 0:\n");
@@ -148,7 +154,9 @@ void main (int argc, char **argv) {
       for(i = 0; i < NV; i++){
 	fprintf(stdout, "  %d  %d: ", i, mind[i]);
 	j=0;
+	
 	while(j<NV){
+	  
 	  // Print out the minimum paths for each node
 	  fprintf(stdout, "%2d",spath[i][j]);
 	  j++;
@@ -160,6 +168,8 @@ void main (int argc, char **argv) {
       // Draw path between nodes I and J
       draw_path(NV,&nodex[0],&nodey[0]);
 
+      // Draw shortest path between first and last node
+      // draw_path(...);
     }
   }
 
@@ -309,7 +319,7 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 */
 {
   int *connected;
-  int i;
+  int i,j,k;
   int i4_huge = INT_MAX;
   int md;
   int *mind;
@@ -341,12 +351,12 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
   }
 
   # pragma omp parallel private(my_first, my_id, my_last, my_md, my_mv, my_step ) \
-    shared(connected, md, mind, mv, nth, ohd, sidx)
+    shared(connected, md, mind, mv, nth, ohd)
   {
     my_id = omp_get_thread_num();
     nth = omp_get_num_threads();
     my_first = (my_id*NV)/nth;
-    my_last  = ((my_id + 1 ) *NV )/nth -1;
+    my_last  = ((my_id + 1 ) *NV )/nth - 1;
 
     # pragma omp single
     {
@@ -368,8 +378,9 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 	Each thread finds the nearest unconnected node in its part of the graph.
 	Some threads might have no unconnected nodes left.
       */
-
+      
       find_nearest(my_first, my_last, &node_id, mind, connected, &my_md, &my_mv );
+
 
       /*
 	In order to determine the minimum of all the MY_MD's, we must insist
@@ -378,10 +389,11 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 
       # pragma omp critical
       {
-        if(my_md < md )  
+        if(my_md < md)  
 	  {
 	    md = my_md;
 	    mv = my_mv;
+
 	  }
       }
       /*
@@ -389,7 +401,9 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 	block, and therefore MD and MV have the correct value.  Only then
 	can we proceed.
       */
-# pragma omp barrier
+
+      # pragma omp barrier
+
       /*
 	If MV is -1, then NO thread found an unconnected node, so we're done early. 
 	OpenMP does not like to BREAK out of a parallel region, so we'll just have 
@@ -397,17 +411,12 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 
 	Otherwise, we connect the nearest node.
       */
-# pragma omp single 
+
+      # pragma omp single 
       {
         if(mv != - 1 )
 	  {
 	    connected[mv] = 1;
-	    if(*sidx < NV && node_id < NV){
-	      spath[node_id][*sidx] = mv;
-	      (*sidx)++;
-	      //printf("%d %d %d\n",node_id,*sidx,mv);
-	    }
-
 
 	    printf("  P%d: Connecting node %d.\n", my_id, mv );
 
@@ -425,7 +434,7 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
       */
       if(mv != -1 )
 	{
-	  update_mind(my_first, my_last, mv, connected, ohd, spath, mind );
+	  update_mind(my_first, my_last, mv, &node_id,connected, ohd, spath, mind );
 	}
       /*
 	Before starting the next step of the iteration, we need all threads 
@@ -449,7 +458,7 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][NV],int *sidx)
 }
 
 
-void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV], int spath[NV][NV], int mind[NV] )
+void update_mind(int s, int e, int mv, int *node_id, int connected[NV], int ohd[NV][NV], int spath[NV][NV], int mind[NV] )
 /*
   Purpose:
 
@@ -481,17 +490,20 @@ void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV], int s
   E have been updated.
 */
 {
-  int i,k=1;
+  int i,j,k;
   int i4_huge = INT_MAX;
     
   for(i = s; i <= e; i++ ){
     if(!connected[i]){
       if(ohd[mv][i] < i4_huge){
-
 	if(mind[mv] + ohd[mv][i] < mind[i]){
           mind[i] = mind[mv] + ohd[mv][i];
-	  //spath[i][k] = mv;
-	  //k++;
+
+	    k = spath[i][0] + 1;
+	    spath[i][k] = mv;
+	    // Keep last node_id in first column
+	    spath[i][0] = k;
+	  
         }
       }
     }
@@ -535,7 +547,7 @@ void find_nearest(int s, int e, int *node_id, int mind[NV], int connected[NV], i
     if(!connected[i] && (mind[i] < *d)){
 	  *d = mind[i];
 	  *v = i;
-	  *node_id = i;
+
       }
   }
   return;
@@ -545,5 +557,35 @@ void draw_path(int nmax,int *ndx,int *ndy){
   for(int n=1;n<= nmax;n++){
     XDrawLine(dis,win,gc, ndx[n-1],ndy[n-1],ndx[n],ndy[n]);
   }
+  return;
+}
+
+
+void test_path(int ohd[NV][NV],int mind[NV],int spath[NV][NV]){
+
+  int i,j,k,l,m;
+  int test;
+  
+  for(i=0;i<NV;i++){
+    k = spath[i][1];
+    test = 0;
+    l = spath[i][0];
+    j=1;
+    m = 0;
+    while(j <= l){
+      k = spath[i][j];
+      test += ohd[m][k];
+      m = k;
+      j++;
+    }
+
+    if(test == mind[i]){
+      spath[i][NV-1] = test;
+    }else{
+      spath[i][NV-1] = test;
+    }
+
+  }
+
   return;
 }
