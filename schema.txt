@@ -1,0 +1,35 @@
+main:
+init_x
+
+while(1){
+	XnextEvent = ButtonPress
+	spath <- 0
+
+	init(ohd,nodes)
+	-> distance matrix
+
+      	mind = dijkstra_distance(ohd,spath,&sidx);	
+	     # pragma parallel
+	       my_id, my_first, my_last
+	       for 1 <= my_step < NV
+	       	   find_nearest(my_s, ...spath,mind,connect...);
+		        for s <= i < e
+			if not connected && mind[i] < old distance
+			   update mind[i] to new shortest d
+			   connect the new node *v
+			   spath ?
+			   
+		   update_mind();
+			for s <= i < e
+			if not connected
+			   if shorter distance
+			      mind[i] <- new distance
+	     
+	test_path();
+	-> mind + spath
+	draw_path();
+
+}
+
+free(mind);
+return;
