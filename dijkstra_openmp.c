@@ -143,7 +143,7 @@ int *dijkstra_distance(int ohd[NV][NV]  )
   Begin the parallel region.
 */
   # pragma omp parallel private(my_first, my_id, my_last, my_md, my_mv, my_step ) \
-  shared(connected, md, mind, mv, nth, ohd )
+    shared(connected, md, mind, mv, nth, ohd)
   {
     my_id = omp_get_thread_num();
     nth = omp_get_num_threads(); 
@@ -161,6 +161,8 @@ int *dijkstra_distance(int ohd[NV][NV]  )
     }
     fprintf(stdout, "  P%d:  First=%d  Last=%d\n", my_id, my_first, my_last );
 
+
+    // Go through every nodes
     for(my_step = 1; my_step < NV; my_step++ ){
 /*
   Before we compare the results of each thread, set the shared variable 
@@ -452,3 +454,5 @@ void update_mind(int s, int e, int mv, int connected[NV], int ohd[NV][NV],
   }
   return;
 }
+
+
