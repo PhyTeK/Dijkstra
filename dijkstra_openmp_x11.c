@@ -9,27 +9,27 @@
 #include <omp.h>
 #include <math.h>
 
-# define NV 10
-# define PNV 20
-# define NTHREADS 4
-# define MAXD 50
+#define NV 10
+#define PNV 20
+#define NTHREADS 4
+#define MAXD 50
+
 Display *dis;
 int screen;
 Screen *screenWindow;
-int screenWidth=600,screenHeight=600;
+int screenWidth=600, screenHeight=600;
 Window win,*winp;
 GC gc;
 
 unsigned long salmon;
 
 void main(int argc, char **argv );
-int *dijkstra_distance(int ohd[NV][NV], int spath[NV][PNV],int *);
-void find_nearest(int s, int e, int *,int spath[NV][PNV], int mind[NV], int connected[NV], int *d, 
-		  int *v );
+int *dijkstra_distance(int ohd[NV][NV], int spath[NV][PNV],int *, int memo[NV*NV]);
+void find_nearest(int s, int e, int *,int spath[NV][PNV], int mind[NV], int connected[NV], int *d, int *v );
 void init(int ohd[NV][NV],int *,int *);
 void timestamp(void );
 void update_mind(int s, int e, int mv, int *node_id, int connected[NV],
-    int ohd[NV][NV], int spath[NV][PNV], int mind[NV] );
+		 int ohd[NV][NV], int spath[NV][PNV], int mind[NV], int memo[NV*NV] );
 
 void init_x();
 void close_x();
@@ -38,7 +38,7 @@ void get_colors();
 void create_colormap();
 void draw_path(int,int *,int *);
 void test_path(int ohd[NV][NV],int mind[NV],int spath[NV][PNV]);
-
+void short_path(int mind[NV],int spath[NV][PNV]);
 
 
 void main (int argc, char **argv) {
@@ -56,14 +56,13 @@ void main (int argc, char **argv) {
   int ohd[NV][NV];    // Distance matrix
   int spath[NV][PNV];  // Shortest path between nodes 0 and i
   int sidx=0;
-
+  int memo[NV*NV];
+  
   timestamp();
   init_x();
   get_colors();
-
-
-  
-  while(1) {		
+ 
+  while(1){
     XNextEvent(dis, &event);
 
     if (event.type == Expose && event.xexpose.count == 0) {
@@ -76,21 +75,23 @@ void main (int argc, char **argv) {
       }
     }
     if (event.type==ButtonPress) {
-      //int x=event.xbutton.x,
+
+      // int x=event.xbutton.x,
       //    y=event.xbutton.y;
-      //XDrawString(dis,win,gc,x,y, text, strlen(text));
-      //XDrawLine(dis,win,gc, 0,0, 1000,500);
-      //XDrawArc(dis,win,gc,100,100, 400, 500, 300, 10000);
-      //XDrawRectangle(dis, win, gc, 100, 100, 200, 400);
-      //XFillRectangle(dis,win,gc, 300, 300, 30, 30);
+      // XDrawString(dis,win,gc,x,y, text, strlen(text));
+      // XDrawLine(dis,win,gc, 0,0, 1000,500);
+      // XDrawArc(dis,win,gc,100,100, 400, 500, 300, 10000);
+      // XDrawRectangle(dis, win, gc, 100, 100, 200, 400);
+      // XFillRectangle(dis,win,gc, 300, 300, 30, 30);
+
       XSetForeground(dis,gc,salmon);
       XGetWindowAttributes(dis, win, &watt);
       screenHeight = watt.height;
       screenWidth = watt.width;
+
       //printf("\t%dX%d\n",screenWidth,screenHeight);
 
       redraw();
-
 
       // Draw starting point
 
@@ -107,6 +108,8 @@ void main (int argc, char **argv) {
 	}
       }
 
+      for(l=0;l<NV*NV;l++)
+	memo[l]=0;
       
       // Draw nodes and save nodes positions
       k=0;
@@ -129,6 +132,7 @@ void main (int argc, char **argv) {
       fprintf(stdout, "\n" );
       fprintf(stdout, "  Distance matrix:\n" );
       fprintf(stdout, "\n" );
+
       for(i = 0; i < NV; i++ ) {
 	for(j = 0; j < NV; j++ ) {
 	  if(ohd[i][j] == i4_huge ) {
@@ -141,25 +145,19 @@ void main (int argc, char **argv) {
       }
 
       // Obtain minimum distance for all nodes
-      mind = dijkstra_distance(ohd,spath,&sidx);
+      mind = dijkstra_distance(ohd,spath,&sidx,memo);
 
-      
-      
       timestamp();
 
+      // Find the paths from source to each vertex
+      
+      // short_path(mind,spath);
 
       // End each path with last node
 
-      for(i=0;i<NV;i++){
-	if(1){
-	  k = spath[i][0] + 1;
-	  spath[i][k] = i;
-	  spath[i][0] = k;
-	}
-      }
-
-
-
+      for(i=0;i<NV;i++)
+	spath[i][++(spath[i][0])] = i;
+  
       // Test if sum of paths for each node is the same as in mind[NV]
 
       test_path(ohd,mind,spath);
@@ -180,7 +178,6 @@ void main (int argc, char **argv) {
 	}
 	fprintf(stdout,"\n");
       }
-
 
       // Draw path between nodes I and J
       draw_path(NV,&nodex[0],&nodey[0]);
@@ -247,7 +244,7 @@ void create_colormap() {
     tmp[i].green=i*256;
   }	
   cmap=XCreateColormap(dis,RootWindow(dis,screen),
-		       DefaultVisual(dis,screen),AllocAll);
+	      DefaultVisual(dis,screen),AllocAll);
   XStoreColors(dis, cmap, tmp,255);
   XSetWindowColormap(dis,win,cmap);
 }
@@ -286,16 +283,16 @@ void init(int ohd[NV][NV],int *ndx,int *ndy)
       }
     }
   }
-  
+ 
   // Initialize all consecutive nodes
-  
+ 
   for (i = 0; i < NV ; i++){
     for(j = i; j < NV; j++){ 
-      if(i==j) {
+      if(i == j) {
 	ohd[i][i] = 0;
       }else{
-	//x = (double)(ndx[i]-ndx[j]);
-	//y = (double)(ndy[i]-ndy[j]);
+	// x = (double)(ndx[i]-ndx[j]);
+	// y = (double)(ndy[i]-ndy[j]);
 	// ohd[j][i] = ohd[i][j] = (int)sqrt(x*x+y*y);
 	ohd[j][i] = ohd[i][j] = rand()%MAXD ;
       }
@@ -305,7 +302,7 @@ void init(int ohd[NV][NV],int *ndx,int *ndy)
   return;
 }
 
-int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
+int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx,int memo[NV*NV])
 /*
   Purpose:
 
@@ -351,18 +348,21 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
   int node_id;
 
   *sidx = 0;
-  
+ 
   connected = (int*) malloc(NV*sizeof(int));
   if(connected == NULL) close_x();
   
+  // Connect the source vertex
   connected[0] = 1;
   for(i = 1; i < NV; i++){
     connected[i] = 0;
   }
 
+  // Minimum distance from the source to each vertex
   mind = (int*) malloc(NV*sizeof(int));
   if(mind == NULL) close_x();
 
+  // Init mind from distance matrix 
   for(i = 0; i < NV; i++ ){
     mind[i] = ohd[0][i];
   }
@@ -387,22 +387,23 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
     
     for(my_step = 1; my_step < NV; my_step++ ) {
 
+      // Print mind shiffted in spath
       for(l=0;l<NV;l++)
-      	    spath[l][my_step+8] = mind[l];
-
+	spath[l][my_step+8] = mind[l];
+      
       
       # pragma omp single 
       {
         md = i4_huge;
         mv = -1; 
       }
+
       /*
 	Each thread finds the nearest unconnected node in its part of the graph.
 	Some threads might have no unconnected nodes left.
       */
       
       find_nearest(my_first, my_last, &node_id, spath, mind, connected, &my_md, &my_mv );
-
 
       /*
 	In order to determine the minimum of all the MY_MD's, we must insist
@@ -412,13 +413,14 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
       # pragma omp critical
 
       {
-        if(my_md < md)  
-	  {
+        if(my_md < md) {
 	    md = my_md;
 	    mv = my_mv;
 
+	    // printf("%d,",mv);
 	  }
       }
+      
       /*
 	This barrier means that ALL threads have executed the critical
 	block, and therefore MD and MV have the correct value.  Only then
@@ -442,9 +444,7 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
 	    connected[mv] = 1;
 
 	    printf("  P%d: Connecting node %d.\n", my_id, mv );
-
-	  }
-	
+	  }	
       }
       /*
 	Again, we don't want any thread to proceed until the value of
@@ -456,9 +456,21 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
 	by checking to see whether the trip from 0 to MV plus the step
 	from MV to a node is closer than the current record.
       */
+
+      if(my_step == 5){
+	(memo[0])++;
+	memo[memo[0]] = mv;
+	
+      }
+
+      //(spath[my_step][0])++;
+      //spath[my_step][++spath[my_step][0]] = mv;
+      
+
       if(mv != -1 ){
-	update_mind(my_first, my_last, mv, &node_id,connected, ohd, spath, mind );
+	update_mind(my_first, my_last, mv, &node_id,connected, ohd, spath, mind, memo );
 	}
+
       /*
 	Before starting the next step of the iteration, we need all threads 
 	to complete the updating, so we set a BARRIER here.
@@ -468,6 +480,15 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
       
       //p++;
       //printf("mystep=%d md=%d mv=%d\n", my_step,md,mv);
+	
+      
+      if(my_step == 5 || my_step == 7){
+      for(l=0;l<memo[0];l++)
+	printf("(%d,%d,%d),",my_id,l,memo[l]);
+      printf("\n");
+      }
+
+
     } // end of for mystep
     /*
       Once all the nodes have been connected, we can exit.
@@ -485,7 +506,7 @@ int *dijkstra_distance(int ohd[NV][NV],int spath[NV][PNV],int *sidx)
 }
 
 
-void update_mind(int s, int e, int mv, int *node_id, int connected[NV], int ohd[NV][NV], int spath[NV][PNV], int mind[NV] )
+void update_mind(int s, int e, int mv, int *node_id, int connected[NV], int ohd[NV][NV], int spath[NV][PNV], int mind[NV], int memo[NV*NV] )
 /*
   Purpose:
 
@@ -519,35 +540,29 @@ void update_mind(int s, int e, int mv, int *node_id, int connected[NV], int ohd[
 {
   int i,j,k,p,l;
   int i4_huge = INT_MAX;
-    
+  int flag;
+  
   for(i = s; i <= e; i++ ){
+    flag=1;
     if(!connected[i]){
       if(ohd[mv][i] < i4_huge){
 	//printf("mind[%d]=%d, ",i,mind[i]);
 	//if(i == 9) printf("\nold mind[%d]=%d new mind(%d)=%d\n",i,mind[i],mv,mind[mv] + ohd[mv][i]);
+	//if(mind[mv] + ohd[mv][i] >= mind[i])
+	//spath[i][0] = 0;
 
-
-	    
 	if(mind[mv] + ohd[mv][i] < mind[i]){
 
-	  k = spath[i][0] + 1;
-	  
-	  spath[i][k] = mv;
-	  spath[i][0] = k;
-
-	  //if( i== 9) printf("\nspath[%d][%d]=%d",i,k,spath[i][k]);
 	  mind[i] = mind[mv] + ohd[mv][i];
-
-
-
+	  spath[i][++spath[i][0]] = mv;
+	  
+	}else if(mind[mv] + ohd[mv][i] > mind[i]){
+	   spath[i][0] = 0;
+	  
 	}
-	
       }
-
     }
-    
   }
-  
   return;
 }
 
@@ -590,7 +605,6 @@ void find_nearest(int s, int e, int *node_id, int spath[NV][PNV], int mind[NV], 
 
 	  /* printf("%d,",i); */
 	  /* p = spath[i][0] + 10; */
-
 	  /* spath[i][p] = i; */
 	  
 	  //fprintf(stdout,"connected mind[%d]=%d",i,mind[i]);
@@ -615,10 +629,9 @@ void draw_path(int nmax,int *ndx,int *ndy){
   return;
 }
 
-
 void test_path(int ohd[NV][NV],int mind[NV],int spath[NV][PNV]){
   // Keep test result in the last column of spath[][]
-  
+ 
   int i,j,k,l,m;
   int test;
   
@@ -640,14 +653,32 @@ void test_path(int ohd[NV][NV],int mind[NV],int spath[NV][PNV]){
     }else{
       spath[i][PNV-1] = test;
     }
-
   }
 
   return;
 }
 
-void short_path(){
+void short_path(int mind[NV],int spath[NV][PNV]){
 
+  int i = NV,j,k;
+ 
+  while(i>0){
+      k = --i;
 
+      // Find the absolut minimum between i-vertex and source
+      for(j=k;j>0;j--){
+	if(mind[j] < mind[k])
+	  k = j;
+      }
+      
+      spath[i][++(spath[i][0])] = k;
+      // Next minimum
+    }
+  
+  // End each path with last node
+  
+  //for(i=0;i<NV;i++)
+  //    spath[i][++(spath[i][0])] = i;
+  
   return;
 }
